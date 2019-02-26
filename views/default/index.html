@@ -1,0 +1,30 @@
+{{extend 'layout.html'}}
+
+{{block head}}
+<script src="{{=URL('static', 'js/vue.js')}}"></script>
+<script>
+    var my_url = "{{=URL('api', 'my_method')}}";
+</script>
+<link href="{{=URL('static','js/chessboardjs/css/chessboard-0.3.0.css')}}" rel="stylesheet" type="text/css"/>
+{{end}}
+
+<div class="main_content">
+
+  <h2> Chess AI </h2>
+
+  <div>
+    <div id="board" class="twothirds left" style="width: 500px"></div>
+    <br>
+    <div class="info third right">
+        <div id="move-history" class="move-history">
+        </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.js"></script>
+<script src="{{=URL('static', 'js/chessboardjs/js/chessboard-0.3.0.js')}}"></script>
+<script src="{{=URL('static', 'js/default_index.js')}}"></script>
+
+
