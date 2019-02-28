@@ -1,0 +1,32 @@
+
+.chess_page {
+
+	margin-left: 10px;
+	margin-right: 10px;
+
+}
+
+.chess_board {
+	margin-bottom: 10px;
+}
+
+.title {
+	margin-top: 5px !important;
+}
+
+.info {
+	margin-top: 62px
+}
+
+.controls {
+	margin-top: 62px;
+}
+
+.depth_selection {
+	text-align: center;
+}
+
+.move_history {
+	max-height: 330px;
+	overflow-y: scroll;
+}
