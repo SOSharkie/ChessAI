@@ -5,35 +5,55 @@ var board,
 
 var currentEval;
 var positionCount;
+var transpositionTable = new LRU(999999);
+var hitCounter = 0;
+var principleVariation = [];
 
-var minimaxRoot =function(depth, game, isMaximisingPlayer) {
+
+// ----------------------------------------------------------------------------------------------------
+// ---------------------------------------- Move search Section ---------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+/*
+* The minimax root function which looks at all the current available moves (depth = 1)
+*/
+var minimaxRoot = function(depth, game, isMaximisingPlayer) {
 
     var newGameMoves = game.moves();
+    newGameMoves = sortMoveArray(newGameMoves, game);
     var bestMove = -9999;
     var bestMoveFound;
+    console.log("newGameMoves", newGameMoves);
 
     for(var i = 0; i < newGameMoves.length; i++) {
+        var value;
         var newGameMove = newGameMoves[i]
         game.move(newGameMove);
-        var value = minimax(depth - 1, game, -10000, 10000, !isMaximisingPlayer);
+        value = minimax(depth - 1, game, -10000, 10000, !isMaximisingPlayer);
         game.undo();
         if(value >= bestMove) {
             bestMove = value;
             currentEval = bestMove;
+            console.log("new best move ", newGameMove, " value = ", value);
             setStats();
             bestMoveFound = newGameMove;
         }
     }
+
     return bestMoveFound;
 };
 
+/*
+* The minimax function which recursively looks at the move tree 
+*/
 var minimax = function (depth, game, alpha, beta, isMaximisingPlayer) {
     positionCount++;
     if (depth === 0) {
-        return -evaluateBoard(game.board());
+        return -evaluateBoard(game.board(), game.fen());
     }
 
     var newGameMoves = game.moves();
+    newGameMoves = sortMoveArray(newGameMoves);
 
     if (isMaximisingPlayer) {
         var bestMove = -9999;
@@ -62,16 +82,101 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer) {
     }
 };
 
-var evaluateBoard = function (board) {
+/*
+* Sorts the move list by priority of move
+*/
+var sortMoveArray = function(moves, game){
+    return moves.sort(function(a, b){
+    if (b.includes("#") && !a.includes("#")){       //look at checkmates first
+        return 1;
+    } else if (!b.includes("#") && a.includes("#")){
+        return -1;
+    } else if (b.includes("+") && !a.includes("+")){ //look at checks second
+        return 1;
+    } else if (!b.includes("+") && a.includes("+")){ 
+        return -1;
+    } else if (b.includes("x") && !a.includes("x")){ //look at captures third
+        return 1;
+    } else if (!b.includes("x") && a.includes("x")){
+        return -1;
+    }  else if (b.includes("a") && !a.includes("a")){ //look at a file last
+        return -1;
+    } else if (!b.includes("a") && a.includes("a")){
+        return 1;
+    } else if (b.includes("h") && !a.includes("h")){ //look at h file last
+        return -1;
+    } else if (!b.includes("h") && a.includes("h")){
+        return 1;
+    }  else if (game && game.history().length < 12){  //-------- if in the first 6 moves -------- 
+
+        if (b.includes("R") && !a.includes("R")){        //don't move Rooks 
+            return -1;
+        } else if (!b.includes("R") && a.includes("R")){
+            return 1;
+        } else if (!b.includes("K") && a.includes("K")){ //don't move king
+            return 1;
+        } else if (!b.includes("K") && a.includes("K")){
+            return 1;
+        }
+    } else {
+        return 0;
+    }
+  });
+}
+
+var quiesce = function(game, alpha, beta, isMaximisingPlayer){
+    var standPat = minimaxRoot(0, game, isMaximisingPlayer);
+    if (standPat >= beta){
+        return beta;
+    }
+    if (aplha < standPat){
+        alpha = standPat;
+    }
+    var newGameMoves = game.moves();
+    var captures = findCaptures(newGameMoves);
+    var score;
+
+    for (var i = 0; i < captures.length; i++){
+        game.move(captures[i]);
+        score = quiesce(game, alpha, beta, !isMaximisingPlayer);
+        game.undo();
+        if ( score >= beta){
+            return beta;
+        }
+        if (score > alpha){
+            alpha = score;
+        }
+    }
+    return alpha;
+}
+
+var findCaptures = function(moves){
+    return moves.filter(function(move){
+        return move.includes("x");
+    })
+}
+
+// ----------------------------------------------------------------------------------------------------
+// -------------------------------------- Board Evaluation Section ------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+/*
+* Give the current board an evaluation score based on pieces and piece positions
+*/
+var evaluateBoard = function (board, fen) {
     var totalEvaluation = 0;
     for (var i = 0; i < 8; i++) {
         for (var j = 0; j < 8; j++) {
             totalEvaluation = totalEvaluation + getPieceValue(board[i][j], i ,j);
         }
     }
+
     return totalEvaluation;
 };
 
+/*
+* Reverses an array
+*/
 var reverseArray = function(array) {
     return array.slice().reverse();
 };
@@ -154,6 +259,9 @@ var kingEvalWhite = [
 
 var kingEvalBlack = reverseArray(kingEvalWhite);
 
+/*
+* Calculates the value for a piece on a specific square
+*/
 var getPieceValue = function (piece, x, y) {
     if (piece === null) {
         return 0;
@@ -179,7 +287,9 @@ var getPieceValue = function (piece, x, y) {
     return piece.color === 'w' ? absoluteValue : -absoluteValue;
 };
 
-/* board visualization and games state handling starts here*/
+// ----------------------------------------------------------------------------------------------------
+// --------------------------- Board visualization and Games States Section ---------------------------
+// ----------------------------------------------------------------------------------------------------
 
 var onDragStart = function (source, piece, position, orientation) {
     if (game.in_checkmate() === true || game.in_draw() === true ||
@@ -222,6 +332,7 @@ var getBestMove = function (game) {
 var setStats = function() {
     console.log("positionCount: ", positionCount);
     console.log("currentEval: ", currentEval);
+    //console.log("hitCounter: ", hitCounter);
     $('#position-count').text(positionCount);
     $('#current-evaluation').text(currentEval);
 }
