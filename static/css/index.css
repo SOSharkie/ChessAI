@@ -10,8 +10,17 @@
 	margin-bottom: 10px;
 }
 
+#board {
+	/*width: 30%;*/
+}
+
 .title {
 	margin-top: 5px !important;
+}
+
+.progress {
+	margin-left: 12%;
+	margin-bottom: 5px;
 }
 
 .info {
@@ -24,6 +33,12 @@
 
 .depth_selection {
 	text-align: center;
+	width: 25%;
+}
+
+.depth_label {
+	width: 70%;
+	padding-right: 10px;
 }
 
 .move_history {

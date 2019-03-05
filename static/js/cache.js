@@ -1,7 +1,14 @@
 class Node {
-  constructor(key, value, next = null, prev = null) {
+  constructor(key, value, bestMove, depth, next = null, prev = null) {
+
+    if (key === null){
+      console.log("NULL KEY WARNING")
+    }
+
     this.key = key;
     this.value = value;
+    this.bestMove = bestMove;
+    this.depth = depth;
     this.next = next;
     this.prev = prev;
   }
@@ -18,13 +25,13 @@ class LRU {
   }
 
   // Write to head of LinkedList
-  write(key, value){
+  write(key, value, bestMove, depth){
     this.ensureLimit();
 
     if(!this.head){
-      this.head = this.tail = new Node(key, value);
+      this.head = this.tail = new Node(key, value, bestMove, depth);
     }else{
-      const node = new Node(key, value, this.head.next);
+      const node = new Node(key, value, bestMove, depth, this.head.next);
       this.head.prev = node;
       const temp = this.head;
       this.head = node;
@@ -40,16 +47,18 @@ class LRU {
   read(key){
     if(this.cache[key]){
       const value = this.cache[key].value;
-      const node = new Node(key, value);
+      const bestMove = this.cache[key].bestMove;
+      const depth = this.cache[key].depth;
+      const node = new Node(key, value, depth);
 
       // node removed from it's position and cache
       this.remove(key)
-      this.write(key, value);
+      this.write(key, value, bestMove, depth);
 
-      return value;
+      return [value, bestMove, depth];
     }
 
-    console.log(`Item not available in cache for key ${key}`);
+    console.log(`Position not found in cache for key ${key}`);
   }
 
   contains(key){

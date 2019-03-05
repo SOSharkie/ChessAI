@@ -15,27 +15,32 @@
 
     <div class="container quarter controls">
       <input class="game_button right" type="button" id="setStartBtn" value="New Game" />
-      <!-- <input class="game_button right" type="button" id="undoMove" value="Undo Move" /> -->
+      <br>
+      <br>
+      <input class="game_button right" type="button" id="undoMove" value="Undo Move" />
+      <br>
+      <br>
+      <!-- <input class="game_button right" type="button" id="testTable" value="Test Table" /> -->
       <!-- <input class="game_button" type="button" id="flipSides" value="Flip Sides" /> -->
     </div>
 
-    <div class="container half center chess_board">
+    <div class="container center half chess_board">
       <h2 class="center title"> Chess AI </h2>
-      <div id="board" style="width: 500px"></div>
+      <div id="board" style="width: 95%"></div>
     </div>
 
     <div class="container info quarter">
-      <div class="container left">
-        <label class="twothirds left"> Search depth: </label>
-        <select id="search-depth" class="quarter center depth_selection">
+      <div class="left">
+        <label class="left depth_label"> Search depth: </label>
+        <select id="search-depth" class=" depth_selection">
             <option value="1">1</option>
             <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4" selected>4</option>
+            <option value="3" selected="">3</option>
+            <option value="4">4</option>
             <option value="5">5</option>
         </select>
       </div>
-
+      <br>
       <br>
       <span>Positions evaluated: <span id="position-count"></span></span>
       <br>

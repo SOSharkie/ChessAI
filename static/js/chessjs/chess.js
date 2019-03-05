@@ -1373,6 +1373,10 @@ var Chess = function(fen) {
       return output;
     },
 
+    inner_board: function() {
+      return board;
+    },
+
     pgn: function(options) {
       /* using the specification from http://www.chessclub.com/help/PGN-spec
        * example for html usage: .pgn({ max_width: 72, newline_char: "<br />" })
