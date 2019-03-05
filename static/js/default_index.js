@@ -85,9 +85,6 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
             return transpositionTable.read(hashValue)[0];
         } else {
             var evaluationScore = -evaluateBoard(game.board());
-            if (game.in_threefold_repetition()){
-                evaluationScore = 0;
-            }
             if (isMaximisingPlayer){
                 evaluationScore = quiesce(game, alpha, beta, isMaximisingPlayer, 5);
             } else {
@@ -97,6 +94,9 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
             var currentMove;
             if (isMaximisingPlayer){
                 currentMove = moveHistory[moveHistory.length-1];
+            }
+            if (game.in_threefold_repetition()){
+                evaluationScore = 0;
             }
             transpositionTable.write(hashValue, evaluationScore, currentMove, 0);
             return evaluationScore;
@@ -784,6 +784,7 @@ var cfg = {
     position: 'start',
     onDragStart: onDragStart,
     onDrop: onDrop,
+    moveSpeed: 'fast',
     onMouseoutSquare: onMouseoutSquare,
     onMouseoverSquare: onMouseoverSquare,
     onSnapEnd: onSnapEnd
