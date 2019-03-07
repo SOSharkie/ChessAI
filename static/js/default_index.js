@@ -28,13 +28,12 @@ for (var i = 0; i < 8; i++) {
 /*
 * The minimax root function which looks at all the current available moves (depth = 1)
 */
-var minimaxRoot = function(depth, game, isMaximisingPlayer) {
+var minimaxRoot = function(depth, game, isMaximisingPlayer, startTime, maxTime) {
     hitCounter = 0;
     console.log("--------------------------- New Turn ---------------------------");
     var newGameMoves = game.moves();
     var hashValue = zobristHash(game.board()); 
     var predictedBestMove;
-    //console.log(game.ascii());
     if (transpositionTable.contains(hashValue)){
         predictedBestMove = transpositionTable.read(hashValue);
         console.log("predicted best move: ", predictedBestMove[1]);
@@ -43,7 +42,7 @@ var minimaxRoot = function(depth, game, isMaximisingPlayer) {
         console.log("predicted best move: ", predictedBestMove[1]);
     }
     newGameMoves = sortMoveArray(newGameMoves, game.history().length, predictedBestMove[1]);
-    var bestMoveScore = -9999;
+    var bestMoveScore = -10000;
     var bestMoveFound;
     console.log("newGameMoves:", newGameMoves);
 
@@ -51,10 +50,11 @@ var minimaxRoot = function(depth, game, isMaximisingPlayer) {
         var value;
         var newGameMove = newGameMoves[i]
         var newMoveObj = game.move(newGameMove);
-        hashValue = updateZobrist(hashValue, newMoveObj);
-        value = minimax(depth - 1, game, -10000, 10000, !isMaximisingPlayer, hashValue);
+        var newHashValue = updateZobrist(hashValue, newMoveObj);
+        var minimaxResult = minimax(depth - 1, game, -10000, 10000, !isMaximisingPlayer, newHashValue);
+        value = minimaxResult[0];
         var moveHistory = game.history();
-        transpositionTable.write(hashValue, value, moveHistory[moveHistory.length-1], depth);
+        transpositionTable.write(newHashValue, value, minimaxResult[1], depth);
         game.undo();
         if(value > bestMoveScore) {
             bestMoveScore = value;
@@ -63,14 +63,21 @@ var minimaxRoot = function(depth, game, isMaximisingPlayer) {
             setStats();
             bestMoveFound = newGameMove;
         } else {
-            console.log("move ", newGameMove, " value = ", value);
+            //console.log("move ", newGameMove, " value = ", value);
         }
+        var currentTime = new Date().getTime();
+        if (currentTime-startTime > maxTime){
+            console.log("final hit count: ", hitCounter);
+            console.log("current cache size: ", transpositionTable.size);
+            console.log("----------------------------------------------------------------");
+            return bestMoveFound;
+        }
+
     }
 
     console.log("final hit count: ", hitCounter);
     console.log("current cache size: ", transpositionTable.size);
     console.log("----------------------------------------------------------------");
-    //findPV(game, bestMoveFound);
     return bestMoveFound;
 };
 
@@ -82,28 +89,30 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
     if (depth === 0) {
         if (transpositionTable.contains(hashValue)){
             hitCounter++;
-            return transpositionTable.read(hashValue)[0];
+            var tableEntry = transpositionTable.read(hashValue);
+            return [tableEntry[0], tableEntry[1]];
         } else {
-            var evaluationScore = -evaluateBoard(game.board());
+            var moveHistory = game.history();
+            var evaluationScore = -evaluateBoard(game.board(), moveHistory.length);
             if (isMaximisingPlayer){
                 evaluationScore = quiesce(game, alpha, beta, isMaximisingPlayer, 5);
             } else {
                 evaluationScore = -quiesce(game, -beta, -alpha, isMaximisingPlayer, 5);
             }
-            var moveHistory = game.history();
             var currentMove;
-            if (isMaximisingPlayer){
+            if (!isMaximisingPlayer){
                 currentMove = moveHistory[moveHistory.length-1];
             }
             if (game.in_threefold_repetition()){
                 evaluationScore = 0;
             }
-            transpositionTable.write(hashValue, evaluationScore, currentMove, 0);
-            return evaluationScore;
+            transpositionTable.write(hashValue, evaluationScore, "N/A", 0);
+            return [evaluationScore, currentMove];
         }
     }
 
     var newGameMoves = game.moves();
+
     var predictedBestMove;
     if (transpositionTable.contains(hashValue)){
         predictedBestMove = transpositionTable.read(hashValue);
@@ -111,6 +120,7 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
         predictedBestMove = ["not found", "not found", "not found"];
     }
     newGameMoves = sortMoveArray(newGameMoves, game.history().length, predictedBestMove[1]);
+    var bestMoveFound;
 
     if (isMaximisingPlayer) {
         var bestMoveScore = -9999;
@@ -118,54 +128,40 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
             var newMoveObj = game.move(newGameMoves[i]);
             var newHashValue = updateZobrist(hashValue, newMoveObj);
 
-            if (transpositionTable.contains(newHashValue)){
-                var positionData = transpositionTable.read(newHashValue);
-                if (positionData[2] > depth){
-                    hitCounter++;
-                    bestMoveScore = transpositionTable.read(newHashValue)[0];
-                } else {
-                    bestMoveScore = Math.max(bestMoveScore, minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer, newHashValue));
-                    transpositionTable.write(newHashValue, bestMoveScore, newMoveObj.san, depth);
-                }
-            } else {
-                bestMoveScore = Math.max(bestMoveScore, minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer, newHashValue));
-                transpositionTable.write(newHashValue, bestMoveScore, newMoveObj.san, depth);
+            var minimaxResult = minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer, newHashValue);
+            if (minimaxResult[0] > bestMoveScore){
+                bestMoveScore = minimaxResult[0];
+                bestMoveFound = newMoveObj.san;
             }
+            transpositionTable.write(newHashValue, bestMoveScore, minimaxResult[1], depth);
 
             game.undo();
             alpha = Math.max(alpha, bestMoveScore);
             if (beta <= alpha) {
-                return bestMoveScore;
+                return [bestMoveScore, bestMoveFound];
             }
         }
-        return bestMoveScore;
+        return [bestMoveScore, bestMoveFound];
     } else {
         var bestMoveScore = 9999;
         for (var i = 0; i < newGameMoves.length; i++) {
             var newMoveObj = game.move(newGameMoves[i]);
             var newHashValue = updateZobrist(hashValue, newMoveObj);
 
-            if (transpositionTable.contains(newHashValue)){
-                var positionData = transpositionTable.read(newHashValue);
-                if (positionData[2] > depth){
-                    hitCounter++;
-                    bestMoveScore = transpositionTable.read(newHashValue)[0];
-                } else {
-                    bestMoveScore = Math.min(bestMoveScore, minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer, newHashValue));
-                    transpositionTable.write(newHashValue, bestMoveScore, "", depth);
-                }
-            } else {
-                bestMoveScore = Math.min(bestMoveScore, minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer, newHashValue));
-                transpositionTable.write(newHashValue, bestMoveScore, "", depth);
+            var minimaxResult = minimax(depth - 1, game, alpha, beta, !isMaximisingPlayer, newHashValue);
+            if (minimaxResult[0] < bestMoveScore){
+                bestMoveScore = minimaxResult[0];
+                bestMoveFound = newMoveObj.san;
             }
+            transpositionTable.write(newHashValue, bestMoveScore, minimaxResult[1], depth);
 
             game.undo();
             beta = Math.min(beta, bestMoveScore);
             if (beta <= alpha) {
-                return bestMoveScore;
+                return [bestMoveScore, bestMoveFound];
             }
         }
-        return bestMoveScore;
+        return [bestMoveScore, bestMoveFound];
     }
 };
 
@@ -198,7 +194,7 @@ var sortMoveArray = function(moves, numMoves, predictedBestMove){
         return -1;
     } else if (!b.includes("h") && a.includes("h")){
         return 1;
-    }  else if (numMoves < 12){  //-------- if in the first 6 turns -------- 
+    }  else if (numMoves < 20){  //-------- if in the first 10 turns -------- 
 
         if (b.includes("R") && !a.includes("R")){        //don't move Rooks 
             return -1;
@@ -221,15 +217,14 @@ var sortMoveArray = function(moves, numMoves, predictedBestMove){
 */
 var quiesce = function(game, alpha, beta, isMaximisingPlayer, depth){
     positionCount++;
-    var standPat = isMaximisingPlayer ? -evaluateBoard(game.board()) : evaluateBoard(game.board());
+    var moveHistory = game.history();
+    var standPat = evaluateBoard(game.board(), moveHistory.length);
+    var standPat = isMaximisingPlayer ? -standPat : standPat;
     if (standPat >= beta){
         return beta;
     }
     if (alpha < standPat){
         alpha = standPat;
-    }
-    if (depth === 0){
-        return alpha;
     }
     var newGameMoves = game.moves({verbose: true});
     var captures = findCaptures(newGameMoves);
@@ -256,7 +251,7 @@ var quiesce = function(game, alpha, beta, isMaximisingPlayer, depth){
 */
 var findCaptures = function(moves){
     var captures = moves.filter(function(move){
-        return (move.san.includes("x") || move.san.includes("+") || move.san.includes("#"));
+        return (move.san.includes("x"));
     });
 
     for (var i = 0; i < captures.length; i++){
@@ -449,11 +444,11 @@ var updateZobrist = function(hashValue, moveObj) {
 /*
 * Give the current board an evaluation score based on pieces and piece positions
 */
-var evaluateBoard = function (board) {
+var evaluateBoard = function (board, numMoves) {
     var totalEvaluation = 0;
     for (var i = 0; i < 8; i++) {
         for (var j = 0; j < 8; j++) {
-            totalEvaluation = totalEvaluation + getPieceValue(board, board[i][j], i, j);
+            totalEvaluation = totalEvaluation + getPieceValue(board, board[i][j], i, j, numMoves);
         }
     }
 
@@ -463,7 +458,7 @@ var evaluateBoard = function (board) {
 /*
 * Calculates the value for a piece on a specific square
 */
-var getPieceValue = function (board, piece, x, y) {
+var getPieceValue = function (board, piece, x, y, numMoves) {
     if (piece === null) {
         return 0;
     }
@@ -472,15 +467,19 @@ var getPieceValue = function (board, piece, x, y) {
     if (piece.type === 'p') {
         absoluteValue = 10 + ( isWhite ? pawnEvalWhite[y][x] : pawnEvalBlack[y][x]);
     } else if (piece.type === 'r') {
-        absoluteValue = 51 + ( isWhite ? rookEvalWhite[y][x] : rookEvalBlack[y][x] );
+        absoluteValue = 51 + ( isWhite ? rookEvalWhite[y][x] : rookEvalBlack[y][x]);
     } else if (piece.type === 'n') {
         absoluteValue = 32 + knightEval[y][x];
     } else if (piece.type === 'b') {
-        absoluteValue = 33 + ( isWhite ? bishopEvalWhite[y][x] : bishopEvalBlack[y][x] );
+        absoluteValue = 33 + ( isWhite ? bishopEvalWhite[y][x] : bishopEvalBlack[y][x]);
     } else if (piece.type === 'q') {
         absoluteValue = 88 + evalQueen[y][x];
     } else if (piece.type === 'k') {
-        absoluteValue = 999 + ( isWhite ? kingEvalWhite[y][x] : kingEvalBlack[y][x] );
+        if (numMoves < 30){
+            absoluteValue = 999 + ( isWhite ? kingEarlyGameEvalWhite[y][x] : kingEarlyGameEvalBlack[y][x]);
+        } else {
+            absoluteValue = 999 + ( isWhite ? kingLateGameEvalWhite[y][x] : kingLateGameEvalBlack[y][x]);
+        }
     } else {
         throw "Unknown piece type: " + piece.type;
     }
@@ -613,8 +612,7 @@ var rookEvalWhite = [
 
 var rookEvalBlack = reverseArray(rookEvalWhite);
 
-var evalQueen =
-    [
+var evalQueen = [
     [ -2.0, -1.0, -1.0, -0.5, -0.5, -1.0, -1.0, -2.0],
     [ -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, -1.0],
     [ -1.0,  0.0,  0.5,  0.5,  0.5,  0.5,  0.0, -1.0],
@@ -625,19 +623,31 @@ var evalQueen =
     [ -2.0, -1.0, -1.0, -0.5, -0.5, -1.0, -1.0, -2.0]
 ];
 
-var kingEvalWhite = [
-
+var kingEarlyGameEvalWhite = [
     [ -3.0, -4.0, -4.0, -5.0, -5.0, -4.0, -4.0, -3.0],
     [ -3.0, -4.0, -4.0, -5.0, -5.0, -4.0, -4.0, -3.0],
     [ -3.0, -4.0, -4.0, -5.0, -5.0, -4.0, -4.0, -3.0],
     [ -3.0, -4.0, -4.0, -5.0, -5.0, -4.0, -4.0, -3.0],
     [ -2.0, -3.0, -3.0, -4.0, -4.0, -3.0, -3.0, -2.0],
     [ -1.0, -2.0, -2.0, -2.0, -2.0, -2.0, -2.0, -1.0],
-    [  2.0,  2.0,  0.0,  0.0,  0.0,  0.0,  2.0,  2.0 ],
-    [  2.0,  3.0,  1.0,  0.0,  0.0,  1.0,  3.0,  2.0 ]
+    [  2.0,  2.0,  0.0,  0.0,  0.0,  0.0,  2.0,  2.0],
+    [  2.0,  3.0,  1.0,  0.0,  0.0,  1.0,  3.0,  2.0]
 ];
 
-var kingEvalBlack = reverseArray(kingEvalWhite);
+var kingEarlyGameEvalBlack = reverseArray(kingEarlyGameEvalWhite);
+
+var kingLateGameEvalWhite = [
+    [ -5.0, -4.0, -3.0, -2.0, -2.0, -3.0, -4.0, -5.0],
+    [ -3.0, -2.0, -1.0,  0.0,  0.0, -1.0, -2.0, -3.0],
+    [ -3.0, -1.0,  2.0,  3.0,  3.0,  2.0, -1.0, -3.0],
+    [ -3.0, -1.0,  3.0,  4.0,  4.0,  3.0, -1.0, -3.0],
+    [ -3.0, -1.0,  3.0,  4.0,  4.0,  3.0, -1.0, -3.0],
+    [ -3.0, -1.0,  2.0,  3.0,  3.0,  2.0, -1.0, -3.0],
+    [ -3.0, -3.0,  0.0,  0.0,  0.0,  0.0, -3.0, -3.0],
+    [ -5.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -5.0]
+];
+
+var kingLateGameEvalBlack = reverseArray(kingLateGameEvalWhite);
 
 // ----------------------------------------------------------------------------------------------------
 // --------------------------- Board visualization and Games States Section ---------------------------
@@ -654,6 +664,15 @@ var makeBestMove = function () {
     var bestMove = getBestMove(game);
     var moveObj = game.move(bestMove);
     board.position(game.fen());
+
+    var currentHash = zobristHash(game.board());
+    var tableEntry = transpositionTable.read(currentHash);
+    if (tableEntry){
+        console.log("computer thinks your best move is ", tableEntry[1]);
+    } else {
+        console.log("position not found");
+    }
+
     renderMoveHistory(game.history());
     if (game.game_over()) {
         alert('Game over');
@@ -664,14 +683,33 @@ var getBestMove = function (game) {
     if (game.game_over()) {
         alert('Game over');
     }
-
     positionCount = 0;
     var depth = parseInt($('#search-depth').find(':selected').text());
-    var d = new Date().getTime();
-    var bestMove = minimaxRoot(depth, game, true);
-    var d2 = new Date().getTime();
-    var moveTime = (d2 - d);
+    var maxTime = getMaxTime($('#search-time').find(':selected').text());
+    console.log("max search time: ", maxTime);
+
+    var startTime = new Date().getTime();
+
+    if (game.history().length === 1){
+        var firstMove = getFirstBlackMove(game.history()[0]);
+        if (firstMove !== null){
+            console.log("Used opening book");
+            return firstMove;
+        }
+    } else if (game.history().length === 3){
+        var secondMove = getSecondBlackMove(game.history());
+        if (secondMove !== null){
+            console.log("Used opening book");
+            return secondMove;
+        }
+    }
+    var bestMove = minimaxRoot(depth, game, true, startTime, maxTime);
+
+
+    var endTime = new Date().getTime();
+    var moveTime = (endTime - startTime);
     var positionsPerS = Math.round((positionCount * 1000 / moveTime) * 100) / 100;
+
 
     $('#position-count').text(positionCount);
     $('#time').text(moveTime/1000 + 's');
@@ -679,6 +717,17 @@ var getBestMove = function (game) {
     $('#current-evaluation').text(Math.round((currentEval * -.1)*100) / 100);
     return bestMove;
 };
+
+var getMaxTime = function(maxTimeString){
+    switch (maxTimeString) {
+        case "20 sec.": return 20000;
+        case "30 sec.": return 30000;
+        case "1 min.": return 60000;
+        case "2 min.": return 120000;
+        case "5 min.": return 300000;
+        default: return 900000;
+    }
+}
 
 var setStats = function() {
     $('#position-count').text(positionCount);
@@ -710,7 +759,7 @@ var onDrop = function (source, target) {
     }
 
     renderMoveHistory(game.history());
-    window.setTimeout(makeBestMove, 100);
+    window.setTimeout(makeBestMove, 200);
 };
 
 var onSnapEnd = function () {
@@ -813,7 +862,7 @@ $('#undoMove').on('click', function() {
 //     var d = new Date().getTime();
 //     for (var i = 0; i < testNum; i++){
 //         var moveObj = game.move(currentGameMoves[i%currentGameMoves.length]);
-//         var evaluation = evaluateBoard(game.board());
+//         var evaluation = evaluateBoard(game.board(), game.history().length);
 //         var newHash = zobristHash(game.board());
 //         transpositionTable.write(newHash, evaluation, 5);
 //         game.undo();
@@ -828,11 +877,11 @@ $('#undoMove').on('click', function() {
 //     for (var i = 0; i < testNum; i++){
 //         var moveObj = currentGameMoveObjs[i%currentGameMoves.length];
 
-//         //var evaluation = evaluateBoard(game.board());
+//         var evaluation = evaluateBoard(game.board(), game.history().length);
 //         var newHash = updateZobrist(currentHash, moveObj);
 //         newHash = updateZobrist(currentHash, moveObj);
 //         transpositionTable.write(newHash, 3.1, 5);
-//         //game.undo();
+//         game.undo();
 //     }
 //     d2 = new Date().getTime();
 //     readTime = (d2 - d)/1000;

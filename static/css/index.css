@@ -33,15 +33,25 @@
 
 .depth_selection {
 	text-align: center;
-	width: 25%;
+	width: 20%;
 }
 
 .depth_label {
-	width: 70%;
+	width: 75%;
+	padding-right: 10px;
+}
+
+.time_selection {
+	text-align: center;
+	width: 49%;
+}
+
+.time_label {
+	width: 49%;
 	padding-right: 10px;
 }
 
 .move_history {
-	max-height: 330px;
+	max-height: 300px;
 	overflow-y: scroll;
 }

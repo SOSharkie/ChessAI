@@ -32,12 +32,25 @@
     <div class="container info quarter">
       <div class="left">
         <label class="left depth_label"> Search depth: </label>
-        <select id="search-depth" class=" depth_selection">
+        <select id="search-depth" class="depth_selection">
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3" selected="">3</option>
             <option value="4">4</option>
             <option value="5">5</option>
+        </select>
+      </div>
+      <br>
+      <br>
+      <div class="left">
+        <label class="left time_label"> Max Time: </label>
+        <select id="search-time" class="time_selection">
+            <option value="1">20 sec.</option>
+            <option value="2">30 sec.</option>
+            <option value="3" selected="">1 min.</option>
+            <option value="4">2 min.</option>
+            <option value="5">5 min.</option>
+            <option value="6">Unlimited</option>
         </select>
       </div>
       <br>
@@ -61,6 +74,8 @@
 <script src="{{=URL('static', 'js/chessjs/chess.js')}}"></script>
 <script src="{{=URL('static', 'js/chessboardjs/js/chessboard-0.3.0.js')}}"></script>
 <script src="{{=URL('static', 'js/cache.js')}}"></script>
+<script src="{{=URL('static', 'js/opening_book.js')}}"></script>
 <script src="{{=URL('static', 'js/default_index.js')}}"></script>
+
 
 
