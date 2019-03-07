@@ -93,7 +93,7 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
             return [tableEntry[0], tableEntry[1]];
         } else {
             var moveHistory = game.history();
-            var evaluationScore = -evaluateBoard(game.board(), moveHistory.length);
+            var evaluationScore;
             if (isMaximisingPlayer){
                 evaluationScore = quiesce(game, alpha, beta, isMaximisingPlayer, 5);
             } else {
@@ -103,9 +103,9 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
             if (!isMaximisingPlayer){
                 currentMove = moveHistory[moveHistory.length-1];
             }
-            if (game.in_threefold_repetition()){
-                evaluationScore = 0;
-            }
+            // if (game.in_threefold_repetition()){
+            //     evaluationScore = 0;
+            // }
             transpositionTable.write(hashValue, evaluationScore, "N/A", 0);
             return [evaluationScore, currentMove];
         }
@@ -226,16 +226,20 @@ var quiesce = function(game, alpha, beta, isMaximisingPlayer, depth){
     if (alpha < standPat){
         alpha = standPat;
     }
+    if (depth === 0){
+        return alpha;
+    }
+
     var newGameMoves = game.moves({verbose: true});
     var captures = findCaptures(newGameMoves);
     var score;
 
     for (var i = 0; i < captures.length; i++){
         var newMoveObj = game.move(captures[i]);
-        score = -quiesce(game, -beta, -alpha, depth-1);
+        score = -quiesce(game, -beta, -alpha, !isMaximisingPlayer, depth-1);
         game.undo();
 
-        if ( score >= beta){
+        if (score >= beta){
             return beta;
         }
         if (score > alpha){
