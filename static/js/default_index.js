@@ -29,55 +29,48 @@ for (var i = 0; i < 8; i++) {
 * The minimax root function which looks at all the current available moves (depth = 1)
 */
 var minimaxRoot = function(depth, game, isMaximisingPlayer, startTime, maxTime) {
-    hitCounter = 0;
     console.log("--------------------------- New Turn ---------------------------");
     var newGameMoves = game.moves();
     var hashValue = zobristHash(game.board()); 
+    hitCounter = 0;
     var predictedBestMove;
+
     if (transpositionTable.contains(hashValue)){
         predictedBestMove = transpositionTable.read(hashValue);
         console.log("predicted best move: ", predictedBestMove[1]);
     } else {
         predictedBestMove = ["not found", "not found", "not found"];
-        console.log("predicted best move: ", predictedBestMove[1]);
+        console.log("predicted best move: not found");
     }
+
     newGameMoves = sortMoveArray(newGameMoves, game.history().length, predictedBestMove[1]);
     var bestMoveScore = -10000;
     var bestMoveFound;
     console.log("newGameMoves:", newGameMoves);
 
-    for(var i = 0; i < newGameMoves.length; i++) {
+    for (var i = 0; i < newGameMoves.length; i++) {
         var value;
-        var newGameMove = newGameMoves[i]
+        var newGameMove = newGameMoves[i];
         var newMoveObj = game.move(newGameMove);
         var newHashValue = updateZobrist(hashValue, newMoveObj);
+
         var minimaxResult = minimax(depth - 1, game, -10000, 10000, !isMaximisingPlayer, newHashValue);
         value = minimaxResult[0];
-        var moveHistory = game.history();
         transpositionTable.write(newHashValue, value, minimaxResult[1], depth);
         game.undo();
-        if(value > bestMoveScore) {
+
+        if (value > bestMoveScore) {
             bestMoveScore = value;
             currentEval = bestMoveScore;
-            console.log("new best move ", newGameMove, " value = ", value);
-            setStats();
             bestMoveFound = newGameMove;
-        } else {
-            //console.log("move ", newGameMove, " value = ", value);
-        }
+            console.log("new best move ", bestMoveFound, " value = ", -value);
+        } 
+
         var currentTime = new Date().getTime();
         if (currentTime-startTime > maxTime){
-            console.log("final hit count: ", hitCounter);
-            console.log("current cache size: ", transpositionTable.size);
-            console.log("----------------------------------------------------------------");
             return bestMoveFound;
         }
-
     }
-
-    console.log("final hit count: ", hitCounter);
-    console.log("current cache size: ", transpositionTable.size);
-    console.log("----------------------------------------------------------------");
     return bestMoveFound;
 };
 
@@ -99,20 +92,18 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
             } else {
                 evaluationScore = -quiesce(game, -beta, -alpha, isMaximisingPlayer, 5);
             }
+            evaluationScore = -evaluateBoard(game.board(), moveHistory.length);
             var currentMove;
             if (!isMaximisingPlayer){
                 currentMove = moveHistory[moveHistory.length-1];
             }
-            // if (game.in_threefold_repetition()){
-            //     evaluationScore = 0;
-            // }
+           
             transpositionTable.write(hashValue, evaluationScore, "N/A", 0);
             return [evaluationScore, currentMove];
         }
     }
 
     var newGameMoves = game.moves();
-
     var predictedBestMove;
     if (transpositionTable.contains(hashValue)){
         predictedBestMove = transpositionTable.read(hashValue);
@@ -170,11 +161,11 @@ var minimax = function (depth, game, alpha, beta, isMaximisingPlayer, hashValue)
 */
 var sortMoveArray = function(moves, numMoves, predictedBestMove){
     return moves.sort(function(a, b){
-    if (a === predictedBestMove){
+    if (a === predictedBestMove){                   //look at predicted best move first
         return -1;
     } else if ( b === predictedBestMove){
         return 1;
-    } else if (b.includes("#") && !a.includes("#")){       //look at checkmates first
+    } else if (b.includes("#") && !a.includes("#")){ //look at checkmates first
         return 1;
     } else if (!b.includes("#") && a.includes("#")){
         return -1;
@@ -319,9 +310,6 @@ var initZobrist = function(){
         }
     }
     console.log("zobrist table initialized");
-
-    // var bestMove = minimaxRoot(3, game, false);
-    // console.log("table size = ", transpositionTable.size);
 }
    
 var zobristHash = function(board){
@@ -709,12 +697,14 @@ var getBestMove = function (game) {
     }
     var bestMove = minimaxRoot(depth, game, true, startTime, maxTime);
 
-
     var endTime = new Date().getTime();
     var moveTime = (endTime - startTime);
     var positionsPerS = Math.round((positionCount * 1000 / moveTime) * 100) / 100;
 
 
+    console.log("final hit count: ", hitCounter);
+    console.log("current cache size: ", transpositionTable.size);
+    console.log("----------------------------------------------------------------");
     $('#position-count').text(positionCount);
     $('#time').text(moveTime/1000 + 's');
     $('#positions-per-s').text(positionsPerS);
@@ -740,6 +730,7 @@ var setStats = function() {
 
 
 var renderMoveHistory = function (moves) {
+    $('#fen-input').val(game.fen());
     var historyElement = $('#move-history').empty();
     historyElement.empty();
     for (var i = 0; i < moves.length; i = i + 2) {

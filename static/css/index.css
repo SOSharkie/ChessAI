@@ -55,3 +55,16 @@
 	max-height: 300px;
 	overflow-y: scroll;
 }
+
+.fen_container {
+	margin-top: 5px;
+	margin-bottom: 5px;
+}
+
+.fen_input {
+	width: 90% !important;
+}
+
+.fen_label {
+	width: 7%;
+}
